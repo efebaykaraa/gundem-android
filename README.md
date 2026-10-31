@@ -21,7 +21,7 @@ Read RSS/Atom feeds, save and share stories, adjust their ranking, and group rel
 
 ## Get started
 
-Requires **Android 9+**. Build and install the APK using the instructions below.
+Requires **Android 9+**. [Download the v0.9.0 APK](https://github.com/efebaykaraa/gundem-android/releases/tag/v0.9.0) or build it using the instructions below. The downloadable APK is a debug-signed preview.
 
 1. Enable sources in **Kaynaklar**, then select **Akış → Yenile**.
 2. Open **Model → Model seç → İndir ve kullan**, or import a compatible file with **GGUF dosyası seç**.

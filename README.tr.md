@@ -21,7 +21,7 @@ RSS/Atom kaynaklarını okuyun, haberleri kaydedip paylaşın, sıralamayı terc
 
 ## Kurulum ve kullanım
 
-**Android 9+** gerekir. APK’yı aşağıdaki derleme adımlarıyla oluşturup kurun.
+**Android 9+** gerekir. [v0.9.0 APK’sını indirin](https://github.com/efebaykaraa/gundem-android/releases/tag/v0.9.0) veya aşağıdaki adımlarla derleyin. İndirilen APK debug imzalı bir ön sürümdür.
 
 1. **Kaynaklar** ekranında kaynakları açın, ardından **Akış → Yenile** seçin.
 2. **Model → Model seç → İndir ve kullan** ile model indirin veya **GGUF dosyası seç** ile uyumlu bir dosya yükleyin.
