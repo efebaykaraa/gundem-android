@@ -1,0 +1,9 @@
+{
+  "provider": "efebaykara/LFM3-1.7B-Base-Gundem-LoRA",
+  "revision": "8a176de3d592f2f53ca47be50ab20ab201da0dad",
+  "file": "gguf/LFM3-1.7B-Base-Gundem-Q4_K_M.gguf",
+  "size": 1099626912,
+  "sha256": "7f159f876a991ef5de009030de8848cba7c41914065321a4964510af891aa0e3",
+  "license": "LFM Open License v1.0",
+  "verified_at": "2026-11-01"
+}

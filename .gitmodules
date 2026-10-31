@@ -1,0 +1,7 @@
+[submodule "tools/distill"]
+	path = tools/distill
+	url = https://github.com/efebaykaraa/gundem-llms.git
+[submodule "vendor/llama.cpp"]
+	path = vendor/llama.cpp
+	url = https://github.com/ggml-org/llama.cpp.git
+	shallow = true

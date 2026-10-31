@@ -1,0 +1,32 @@
+[
+  {
+    "source": "sol",
+    "url": "https://haber.sol.org.tr/rss.xml",
+    "verified_at": "2026-10-29T09:07:41.781866+00:00",
+    "status": 200,
+    "final_url": "https://haber.sol.org.tr/rss.xml",
+    "root": "rss",
+    "item_count": 10,
+    "first_title": "İddia: CHP'nin tartışmalı kurultayı için tek aday Kılıçdaroğlu olacak "
+  },
+  {
+    "source": "tkp",
+    "url": "https://www.tkp.org.tr/feed/",
+    "verified_at": "2026-10-29T09:07:42.783027+00:00",
+    "status": 200,
+    "final_url": "https://www.tkp.org.tr/feed/",
+    "root": "rss",
+    "item_count": 30,
+    "first_title": "Çalınan Cumhuriyeti Geri Almak Zorundayız!"
+  },
+  {
+    "source": "pe",
+    "url": "https://patronlarinensesindeyiz.org/feed/",
+    "verified_at": "2026-10-29T09:07:44.537676+00:00",
+    "status": 200,
+    "final_url": "https://patronlarinensesindeyiz.org/feed/",
+    "root": "rss",
+    "item_count": 1000,
+    "first_title": "ŞUA İnşaat işçileri hakkını istiyor: İki patron zenginleşecek diye işçinin hakkı gasp ediliyor"
+  }
+]

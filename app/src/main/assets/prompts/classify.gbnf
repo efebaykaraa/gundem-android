@@ -1,0 +1,12 @@
+root ::= "{" ws "\"etiketler\"" ws ":" ws tags ws "," ws "\"tur\"" ws ":" ws kind ws "," ws "\"etki\"" ws ":" ws score ws "," ws "\"ciddiyet\"" ws ":" ws score ws "," ws "\"aciliyet\"" ws ":" ws score ws "}" ws
+ws ::= [ \t\n\r]?
+tags ::= "[" ws ("\"DIGER\"" | tkp | emek | turkiye | uluslararasi | kuba | ekonomi | eylem) ws "]"
+tkp ::= "\"TKP\"" (ws "," ws (emek | turkiye | uluslararasi | kuba | ekonomi | eylem))?
+emek ::= "\"EMEK\"" (ws "," ws (turkiye | uluslararasi | kuba | ekonomi | eylem))?
+turkiye ::= "\"TURKIYE\"" (ws "," ws (uluslararasi | kuba | ekonomi | eylem))?
+uluslararasi ::= "\"ULUSLARARASI\"" (ws "," ws (kuba | ekonomi | eylem))?
+kuba ::= "\"KUBA\"" (ws "," ws (ekonomi | eylem))?
+ekonomi ::= "\"EKONOMI\"" (ws "," ws (eylem))?
+eylem ::= "\"EYLEM\""
+kind ::= "\"ACIKLAMA\"" | "\"CAGRI\"" | "\"SOMUT_GELISME\"" | "\"YORUM\""
+score ::= [0-3]

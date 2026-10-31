@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://haber.sol.org.tr/">
+  <channel>
+    <title>soL API RSS</title>
+    <link>https://haber.sol.org.tr/</link>
+    <item>
+  <title>İzmir'de yıkıma neden olan depremin 6'ncı yılı: Rıza Bey Apartmanı davasında hâlâ karar çıkmadı</title>
+  <link>https://haber.sol.org.tr/haber/izmirde-yikima-neden-olan-depremin-6nci-yili-riza-bey-apartmani-davasinda-hala-karar-cikmadi</link>
+  <description>Haber Merkezi İzmir'de 36 kişinin yaşamını yitirdiği Rıza Bey Apartmanı davasında 6 yıl geçti ama karar çıkmadı. Aileler</description>
+  <pubDate>Thu, 29 Oct 2026 11:10:16 +0300</pubDate>
+    <guid isPermaLink="true">https://haber.sol.org.tr/haber/izmirde-yikima-neden-olan-depremin-6nci-yili-riza-bey-apartmani-davasinda-hala-karar-cikmadi</guid>
+    </item>
+<item>
+  <title>ABD’ye kaçan Bolsonaro kendisini ‘Brezilya’nın lideri’ ilan etti</title>
+  <link>https://haber.sol.org.tr/haber/abdye-kacan-bolsonaro-kendisini-brezilyanin-lideri-ilan-etti-415518</link>
+  <description>Haber Merkezi Brezilya’da devlet başkanlığı seçimini kaybeden Bolsonaro, Miami’ye kaçtı. Lula’nın seçim zaferini “hile” </description>
+  <pubDate>Thu, 29 Oct 2026 10:58:58 +0300</pubDate>
+    <guid isPermaLink="true">https://haber.sol.org.tr/haber/abdye-kacan-bolsonaro-kendisini-brezilyanin-lideri-ilan-etti-415518</guid>
+    </item>
+<item>
+  <title>ABD’de nükleer silah tesisinde yangın</title>
+  <link>https://haber.sol.org.tr/haber/abdde-nukleer-silah-tesisinde-yangin-415517</link>
+  <description>Dış Haberler ABD'nin nükleer silah cephaneliğinin idame ettirilmesinde kilit rol oynayan Güney Karolina'daki tesiste yan</description>
+  <pubDate>Thu, 29 Oct 2026 10:22:43 +0300</pubDate>
+    <guid isPermaLink="true">https://haber.sol.org.tr/haber/abdde-nukleer-silah-tesisinde-yangin-415517</guid>
+    </item>
+</channel>
+</rss>

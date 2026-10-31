@@ -1,0 +1,16 @@
+[
+  {
+    "url": "https://huggingface.co/efebaykara/LFM3-1.7B-Base-Gundem-LoRA/resolve/8a176de3d592f2f53ca47be50ab20ab201da0dad/gguf/LFM3-1.7B-Base-Gundem-Q4_K_M.gguf",
+    "size": 1099626912,
+    "sha256": "7f159f876a991ef5de009030de8848cba7c41914065321a4964510af891aa0e3",
+    "name": "Gündem LFM3 Base · Q4_K_M",
+    "ram": "≈ 1,5–2,2 GB RAM"
+  },
+  {
+    "url": "https://huggingface.co/efebaykara/LFM3-1.7B-Gundem-LoRA/resolve/f27ab4ef77cdc0ab286058ded99f09c54bd9fbbc/gguf/LFM3-1.7B-Gundem-Q4_K_M.gguf",
+    "size": 1099627040,
+    "sha256": "4c3ee81d63d6f6da33efc0ea6a23d062d9383946095a5e334a90f66b448d6319",
+    "name": "Gündem LFM3 · Q4_K_M",
+    "ram": "≈ 1,5–2,2 GB RAM"
+  }
+]

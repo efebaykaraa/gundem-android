@@ -1,0 +1,1 @@
+Classify the headline. A workers' strike is EMEK and EYLEM. Cuba is KUBA. TKP is TKP. Select only relevant topics. Return JSON etiketler,tur,etki,ciddiyet,aciliyet; scores 0..3.
