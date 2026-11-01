@@ -60,11 +60,31 @@ std::string Engine::generate(const std::string &system,const std::string &user,c
     const bool qwen3=std::string(architecture)=="qwen3" || std::string(architecture)=="qwen3moe";
     std::string input=user+(qwen3?"\n/no_think":"");
     llama_chat_message messages[]={{"system",system.c_str()},{"user",input.c_str()}};
-    int count=llama_chat_apply_template(templ,messages,2,true,nullptr,0);
-    if(count<0) throw std::runtime_error("Bu GGUF sohbet sablonu desteklenmiyor.");
-    std::vector<char> formatted(count+1);
-    llama_chat_apply_template(templ,messages,2,true,formatted.data(),formatted.size());
-    std::string prompt(formatted.data(),count);
+    std::string prompt;
+    // Base checkpoints in the paired benchmark use this explicit plain-role
+    // wrapper. The legacy template dispatcher does not execute arbitrary Jinja.
+    const bool plain=std::string(templ).find("m['role'] | capitalize")!=std::string::npos &&
+                     std::string(templ).find("Assistant: ")!=std::string::npos;
+    const bool spark=std::string(architecture)=="spark2_5" && std::string(templ).find("<|System|>")!=std::string::npos;
+    if(spark) {
+        // Spark's published enable_thinking=false template, with the task
+        // system block appended to its fixed assistant identity.
+        prompt="<｜start▁of▁sentence｜><|System|>\nyou are a helpful assistant.\n\n"+system+
+               "<｜end▁of▁sentence｜><｜start▁of▁sentence｜><|User|>"+input+
+               "<｜end▁of▁sentence｜><｜start▁of▁sentence｜><|Bot|></think>";
+    } else if(plain) {
+        prompt="System: "+system+"\nUser: "+input+"\nAssistant: ";
+        if(!llama_vocab_get_add_bos(vocab) && llama_vocab_bos(vocab)!=LLAMA_TOKEN_NULL) {
+            char bos[128];int len=llama_token_to_piece(vocab,llama_vocab_bos(vocab),bos,sizeof(bos),0,true);
+            if(len>0) prompt=std::string(bos,len)+prompt;
+        }
+    } else {
+        int count=llama_chat_apply_template(templ,messages,2,true,nullptr,0);
+        if(count<0) throw std::runtime_error("Bu GGUF sohbet sablonu desteklenmiyor.");
+        std::vector<char> formatted(count+1);
+        llama_chat_apply_template(templ,messages,2,true,formatted.data(),formatted.size());
+        prompt=std::string(formatted.data(),count);
+    }
     // Qwen3's non-thinking prefix, documented by Qwen. /no_think is the soft switch.
     // Never apply this prefix to unrelated model architectures/templates.
     if(qwen3 && std::string(templ).find("<think>")!=std::string::npos) {
@@ -81,9 +101,9 @@ std::string Engine::generate(const std::string &system,const std::string &user,c
             if(len>0) prompt=std::string(bos,len)+prompt;
         }
     }
-    int n=-llama_tokenize(vocab,prompt.data(),prompt.size(),nullptr,0,true,true);
+    int n=-llama_tokenize(vocab,prompt.data(),prompt.size(),nullptr,0,!spark,true);
     if(n<=0 || n+max_tokens+4>static_cast<int>(llama_n_ctx(ctx))) throw std::runtime_error("Girdi model baglam sinirini asiyor; girisi kisaltin.");
-    std::vector<llama_token> tokens(n);llama_tokenize(vocab,prompt.data(),prompt.size(),tokens.data(),n,true,true);
+    std::vector<llama_token> tokens(n);llama_tokenize(vocab,prompt.data(),prompt.size(),tokens.data(),n,!spark,true);
     using Sampler=std::unique_ptr<llama_sampler,decltype(&llama_sampler_free)>;
     Sampler sampler(llama_sampler_chain_init(llama_sampler_chain_default_params()),llama_sampler_free);
     auto *g=llama_sampler_init_grammar(vocab,grammar.c_str(),"root");

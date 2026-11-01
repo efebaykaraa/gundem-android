@@ -21,10 +21,10 @@ RSS/Atom kaynaklarını okuyun, haberleri kaydedip paylaşın, sıralamayı terc
 
 ## Kurulum ve kullanım
 
-**Android 9+** gerekir. [v0.9.0 APK’sını indirin](https://github.com/efebaykaraa/gundem-android/releases/tag/v0.9.0) veya aşağıdaki adımlarla derleyin. İndirilen APK debug imzalı bir ön sürümdür.
+**Android 9+** gerekir. [v0.9.1 APK’sını indirin](https://github.com/efebaykaraa/gundem-android/releases/tag/v0.9.1) veya aşağıdaki adımlarla derleyin. İndirilen APK debug imzalı bir ön sürümdür.
 
 1. **Kaynaklar** ekranında kaynakları açın, ardından **Akış → Yenile** seçin.
-2. **Model → Model seç → İndir ve kullan** ile model indirin veya **GGUF dosyası seç** ile uyumlu bir dosya yükleyin.
+2. **Model → Model seç → İndir ve kullan** ile model indirin veya **Model dosyası seç** ile uyumlu bir dosya yükleyin.
 3. Analiz için **Başlat / devam** düğmesine basın. **Durdur** analizi duraklatır; **Hatalı / eksik analizleri yeniden dene** başarısız sonuçları yeniden işler.
 4. Haberi açarak kaynakları ve puanını görün, analizini düzeltin veya ilgili başlıkları birleştirip ayırın.
 5. **Ayarlar → Katsayılar** altında sıralamayı düzenleyip **Uygula** seçin. Tema, metin boyutu, ayar dışa aktarımı ve loglar da ayarlardadır.
@@ -33,18 +33,13 @@ Model olmadan haber okuyabilirsiniz. Besleme yenilemek, model indirmek ve orijin
 
 ## Modeller
 
-Modeller APK’dan ayrı indirilir.
+Model seçicisinde **10 model ailesinin orijinal ve fine-tuned sürümleri olmak üzere 20 indirme seçeneği** bulunur. Her model kartında ve indirme kartında **100 üzerinden Gündem Score**, sürüm, boyut ve biçim gösterilir. Varsayılan seçim fine-tuned LFM3 Base’dir.
 
-| Model | İndirme | Kullanım |
-| --- | ---: | --- |
-| Gündem LFM3 Base · Q4_K_M | Yaklaşık 1,10 GB | Varsayılan; LFM3 Base üzerinden eğitilmiş |
-| Gündem LFM3 · Q4_K_M | Yaklaşık 1,10 GB | Post-trained LFM3 üzerinden eğitilmiş |
+LFM3 Base, LFM3, Octen, Spark, Llama 3.2 (1B ve 3B), Limite, Qwen 3.5 (0.8B ve 2B) ve GPT-X3 arasından seçim yapabilirsiniz. 18 seçenek Q4_K_M GGUF, GPT-X3’ün iki sürümü ise bağımsız ONNX INT8 paketidir. Uygulama çalıştırma motorunu otomatik seçer; modeller APK’dan ayrı indirilir.
 
-En fazla 3 GiB boyutunda uyumlu GGUF dosyaları içe aktarılabilir. Uygulamanın oluşturacağı kopya için ek depolama gerekir; çalışabilecek modelleri cihazın RAM’i sınırlar. Uyumluluk, uygulamayla gelen llama.cpp sürümüne bağlıdır.
+[Puanları karşılaştırın ve dosyaları indirin](https://github.com/efebaykaraa/gundem-llms/blob/master/docs/MOBILE.tr.md). Puanlar, eğitimde kullanılmayan 101 başlıkta HF/BF16 ile ölçülen sınıflandırma sonuçlarıdır. Telefon hızını veya quantize edilmiş dosyaların yeniden ölçülmüş kalitesini göstermez. 0,0 puan da ölçülmüş bir sonuçtur.
 
-Katalog kendi fine-tuned modellerimizi içerir. İndirmeler sürüm, boyut ve SHA-256 ile sabittir. Başka uyumlu GGUF dosyalarını da içe aktarabilirsiniz. [Model kataloğu](app/src/main/assets/models.json).
-
-[Fine-tuned LFM GGUF dosyalarını indir](https://github.com/efebaykaraa/gundem-llms/blob/master/docs/RELEASES.tr.md) ve model ekranından içe aktar.
+İndirmeler sabit sürüm, boyut ve SHA-256 ile doğrulanır. En fazla 3 GiB boyutunda uyumlu GGUF dosyaları veya GPT-X3 ONNX ZIP paketleri içe aktarılabilir. Kopyalama ve ONNX paketini açma ek depolama gerektirir; çalışabilecek modelleri cihazın RAM’i sınırlar. [Uygulama kataloğu](app/src/main/assets/models.json).
 
 ## Derleme ve yükleme
 

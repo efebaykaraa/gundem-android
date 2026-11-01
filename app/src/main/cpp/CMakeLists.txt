@@ -25,7 +25,7 @@ if(ANDROID_ABI STREQUAL "arm64-v8a")
   set(GGML_CPU_ARM_ARCH "armv8-a" CACHE STRING "" FORCE)
 endif()
 add_subdirectory(../../../../vendor/llama.cpp ${CMAKE_CURRENT_BINARY_DIR}/llama)
-add_library(gundem SHARED bridge.cpp engine.cpp)
+add_library(gundem SHARED bridge.cpp engine.cpp onnx_tokens.cpp)
 target_link_libraries(gundem PRIVATE llama android log)
 
 target_compile_definitions(gundem PRIVATE GUNDEM_PORTABLE_CPU=1)

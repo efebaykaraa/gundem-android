@@ -27,6 +27,7 @@ class LocalModel(private val context:Context) {
     private var idle:Job?=null
     private var loaded=""
     private var qwen=false
+    @Volatile private var onnx:GptOnnxRuntime?=null
     val status=MutableStateFlow("Model bellekte değil")
     private val logStore by lazy { (context.applicationContext as? GundemApp)?.logs ?: EventLog(context) }
     private fun log(event:String,detail:String="",ms:Long?=null)=logStore.add("AI",event,detail,ms)
@@ -35,7 +36,7 @@ class LocalModel(private val context:Context) {
         mutex.withLock {
             idle?.cancel()
             try {
-                require(settings.modelPath.isNotBlank() && File(settings.modelPath).isFile) { "GGUF model seçilmedi" }
+                require(settings.modelPath.isNotBlank() && File(settings.modelPath).isFile) { "Model seçilmedi" }
                 if(loaded!=settings.modelHash) {
                     loadIntoMemory(settings.modelPath,settings.modelHash,settings.modelName)
                 } else log("Bellekteki model kullanılıyor",settings.modelName)
@@ -48,12 +49,12 @@ class LocalModel(private val context:Context) {
             }
         }
     }
-    suspend fun release()=mutex.withLock { NativeLlama.close();loaded="";status.value="Model bellekte değil" }
-    fun cancel() { NativeLlama.cancel() }
+    suspend fun release()=mutex.withLock { onnx?.close();onnx=null;NativeLlama.close();loaded="";status.value="Model bellekte değil" }
+    fun cancel() { onnx?.cancelled=true;NativeLlama.cancel() }
     private fun generate(system:String,user:String,grammar:String,max:Int=160):Generation {
         val start=System.nanoTime();log("Çağrı başladı","girdi=${user.length}, sistem=${system.length}, sınır=$max")
-        val result=try { NativeLlama.generate(system,escapeControlTokens(user),grammar,max) } catch(e:Exception) { log("Çağrı hatası",e.message.orEmpty(),(System.nanoTime()-start)/1_000_000);throw e }
-        log("Çağrı tamamlandı",NativeLlama.stats()+"\n"+result.take(1000),(System.nanoTime()-start)/1_000_000)
+        val result=try { onnx?.generate(system,escapeControlTokens(user),grammar,max) ?: NativeLlama.generate(system,escapeControlTokens(user),grammar,max) } catch(e:Exception) { log("Çağrı hatası",e.message.orEmpty(),(System.nanoTime()-start)/1_000_000);throw e }
+        log("Çağrı tamamlandı",(onnx?.stats?:NativeLlama.stats())+"\n"+result.take(1000),(System.nanoTime()-start)/1_000_000)
         return Generation(result.substringAfter('\n'),result.startsWith("OK\n"))
     }
     suspend fun classify(article:Article):Analysis {
@@ -79,23 +80,26 @@ class LocalModel(private val context:Context) {
         val directory=File(context.filesDir,"models").apply { mkdirs() }
         val temp=File.createTempFile("import-",".part",directory)
         try {
+            var format="gguf"
             val digest=MessageDigest.getInstance("SHA-256")
             context.contentResolver.openInputStream(uri)!!.use { input -> temp.outputStream().use { out ->
-                val header=ByteArray(4);require(input.read(header)==4 && header.contentEquals("GGUF".toByteArray())) { "Dosya GGUF değil" }
+                val header=ByteArray(4);require(input.read(header)==4) { "Model dosyası eksik" }
+                format=when {header.contentEquals("GGUF".toByteArray())->"gguf";header.contentEquals(byteArrayOf(0x50,0x4b,3,4))->"onnx";else->error("GGUF veya desteklenen ONNX paketi seçin")}
                 digest.update(header);out.write(header)
                 val buffer=ByteArray(1024*1024);var total=4L
                 while(true) { currentCoroutineContext().ensureActive();val count=input.read(buffer);if(count<0) break;total+=count;require(total<=3L*1024*1024*1024) { "Bu cihaz profili için en fazla 3 GiB model içe aktarılır" };out.write(buffer,0,count);digest.update(buffer,0,count) }
             } }
             val fingerprint=digest.digest().joinToString("") { "%02x".format(it) }
             val name=context.contentResolver.query(uri,arrayOf(OpenableColumns.DISPLAY_NAME),null,null,null)?.use { c -> if(c.moveToFirst()) c.getString(0) else null }?:"GGUF"
-            install(temp,fingerprint,name)
+            install(temp,fingerprint,name,format)
         } finally { temp.delete() }
     }
-    suspend fun install(file:File,fingerprint:String,name:String):Triple<String,String,String> = withContext(Dispatchers.IO) {
+    suspend fun install(file:File,fingerprint:String,name:String,format:String="gguf"):Triple<String,String,String> = withContext(Dispatchers.IO) {
         require(file.parentFile?.canonicalFile==File(context.filesDir,"models").canonicalFile) { "Model özel model dizininde olmalı" }
         mutex.withLock {
             idle?.cancel()
-            val target=File(file.parentFile,"$fingerprint.gguf")
+            require(format in setOf("gguf","onnx")) { "Model biçimi desteklenmiyor" }
+            val target=File(file.parentFile,"$fingerprint.${if(format=="onnx") "onnx.zip" else "gguf"}")
             if(file.canonicalFile!=target.canonicalFile) {
                 if(target.exists()) file.delete() else check(file.renameTo(target)) { "Model dosyası taşınamadı" }
             }
@@ -127,21 +131,23 @@ class LocalModel(private val context:Context) {
                     if(elapsed>=180_000) {
                         status.value="Model yükleme süresi aşıldı; durduruluyor…"
                         log("Yükleme zaman aşımı",label,elapsed)
-                        NativeLlama.cancel()
+                        cancel()
                         break
                     }
                 }
-            } finally { if(!finished.get()) NativeLlama.cancel() }
+            } finally { if(!finished.get()) cancel() }
         }
         var terminalStatus="Model bellekte değil"
         try {
-            NativeLlama.load(path)
+            onnx?.close();onnx=null;NativeLlama.close()
+            val zipped=File(path).inputStream().use { it.read()==0x50 && it.read()==0x4b }
+            if(zipped) onnx=GptOnnxRuntime(context,File(path),fingerprint) else NativeLlama.load(path)
             currentCoroutineContext().ensureActive()
-            loaded=fingerprint;qwen=NativeLlama.architecture().startsWith("qwen")
-            log("Yükleme tamamlandı",name+" · "+NativeLlama.stats(),(System.nanoTime()-start)/1_000_000)
+            loaded=fingerprint;qwen=onnx==null && NativeLlama.architecture().startsWith("qwen")
+            log("Yükleme tamamlandı",name+" · "+(if(onnx!=null) "ONNX CPU" else NativeLlama.stats()),(System.nanoTime()-start)/1_000_000)
             terminalStatus="Model bellekte hazır"
         } catch(e:Exception) {
-            NativeLlama.close();loaded=""
+            onnx?.close();onnx=null;NativeLlama.close();loaded=""
             terminalStatus=if(e is CancellationException) "Model yüklemesi durduruldu" else "Model yüklenemedi: ${e.message}"
             log("Yükleme başarısız",e.message.orEmpty(),(System.nanoTime()-start)/1_000_000)
             throw e

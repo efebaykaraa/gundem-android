@@ -23,13 +23,36 @@ class Update03Test {
         val log=EventLog(context);log.clear();log.add("AI","Çağrı tamamlandı","girdi_token=42",123)
         val second=EventLog(context);assertEquals(1,second.rows().size);assertEquals(123L,second.rows().single().getLong("elapsedMs"));assertTrue(second.text().contains("girdi_token=42"));second.clear()
     }
-    @Test fun catalogUsesReleasedFinetunesAndMatchingDefault() {
+    @Test fun catalogIncludesEveryMeasuredPairAndScores() {
         val list=modelCatalog(ApplicationProvider.getApplicationContext())
-        assertEquals(2,list.size);assertEquals(RECOMMENDED_MODEL,list.first())
-        assertTrue(list.first().name.startsWith("Gündem LFM3 Base"));assertTrue(list.last().name.startsWith("Gündem LFM3 ·"))
-        assertEquals(2,list.map { it.sha256 }.distinct().size)
-        list.forEach { assertTrue(it.url.startsWith("https://huggingface.co/efebaykara/"));assertTrue(it.url.matches(Regex("https://huggingface\\.co/efebaykara/[^/]+/resolve/[a-f0-9]{40}/gguf/[^/]+\\.gguf"))) }
-        list.forEach {assertTrue(it.url.startsWith("https://"));assertEquals(64,it.sha256.length);assertTrue(it.size>300_000_000)}
+        assertEquals(20,list.size)
+        assertTrue("Every original/fine-tuned variant must be downloadable",list.all { it.downloadable })
+        assertEquals(18,list.count { it.format=="gguf" })
+        assertEquals(2,list.count { it.format=="onnx" })
+        assertEquals(20,list.map { it.id }.distinct().size)
+        assertEquals(10,list.groupBy { it.family }.size)
+        list.groupBy { it.family }.values.forEach { pair ->
+            assertEquals(setOf("original","distilled"),pair.map { it.variant }.toSet())
+            assertTrue(pair.all { it.overallScore!=null && it.overallScore in 0.0..100.0 })
+            assertEquals(0.0,pair.single { it.variant=="original" }.overallScore!!,0.0)
+        }
+        assertEquals(RECOMMENDED_MODEL,list.first())
+        assertTrue(list.first().downloadable)
+        list.filter { it.downloadable }.forEach {
+            assertEquals("gundem-score-v1",it.scoreVersion)
+            assertTrue(it.url.matches(Regex("https://huggingface\\.co/efebaykara/[^/]+/resolve/[a-f0-9]{40}/"+(if(it.format=="onnx") "onnx/[^/]+\\.zip" else "gguf/[^/]+\\.gguf"))))
+            assertTrue(it.size>50_000_000)
+        }
+        list.filterNot { it.downloadable }.forEach { assertTrue(it.availabilityReason.isNotBlank());assertTrue(it.url.isEmpty()) }
+    }
+    @Test fun zeroScoreIsDisplayedAsMeasuredAndUnavailableVariantsRemainDistinct() {
+        val original=ModelSpec("",0,"","Original",id="gpt:original",variant="original",overallScore=0.0)
+        val tuned=original.copy(id="gpt:distilled",variant="distilled",overallScore=69.6)
+        assertFalse(original.downloadable)
+        assertEquals("Gündem Score · 0,0 / 100",original.scoreLabel)
+        assertEquals("Fine-tuned",tuned.variantLabel)
+        assertNotEquals(original.id,tuned.id)
+        assertTrue(original.copy(overallScore=null).scoreLabel.contains("Ölçülmedi"))
     }
     @Test fun disabledSearchFallsBackToVerifiedProfileInsideApp() {
         val directory=XDirectory("https://example.org") { url ->

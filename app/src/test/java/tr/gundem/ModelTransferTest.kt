@@ -13,6 +13,16 @@ class ModelTransferTest {
     private val data="GGUF-real-test-payload".toByteArray()
     private fun sha(bytes:ByteArray)=MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
     private fun spec()=ModelSpec("https://example.org/model.gguf",data.size.toLong(),sha(data),"Test")
+    @Test fun unavailableModelNeverStartsANetworkTransfer()=runTest {
+        val file=Files.createTempFile("gundem-unavailable",".part").toFile()
+        try {
+            val unavailable=ModelSpec("",0,"","Unavailable",availabilityReason="Mobil destek yok")
+            try {
+                ModelTransfer.download(unavailable,file,{}) { error("Network must not open") }
+                fail("Unavailable model accepted")
+            } catch(e:IllegalArgumentException) { assertEquals("Mobil destek yok",e.message);assertEquals(0L,file.length()) }
+        } finally { file.delete() }
+    }
     private class Reply(url:URL,val code:Int,val body:ByteArray,val headers:Map<String,String> = emptyMap()):HttpURLConnection(url) {
         override fun connect() {};override fun disconnect() {};override fun usingProxy()=false
         override fun getResponseCode()=code

@@ -213,25 +213,51 @@ private val Red=Color(0xFFA22332)
 @Composable private fun SettingSlider(label:String,value:Double,range:ClosedFloatingPointRange<Float>,change:(Double)->Unit) { Column { Text("$label · %.2f".format(value),style=MaterialTheme.typography.labelLarge);Slider(value.toFloat(),{change(it.toDouble())},valueRange=range) } }
 @Composable private fun ModelSettings(state:ScreenState,vm:NewsViewModel,busy:Boolean) {
     val status by vm.modelStatus.collectAsStateWithLifecycle();val download by vm.modelDownload.collectAsStateWithLifecycle()
-    val catalog=remember { modelCatalog(vm.app) };var selected by remember(state.settings.modelHash) { mutableStateOf(catalog.firstOrNull { it.sha256==state.settings.modelHash } ?: catalog.first()) };var choose by remember { mutableStateOf(false) };var info by remember { mutableStateOf(false) }
+    val catalog=remember { modelCatalog(vm.app) };var selected by remember(state.settings.modelHash) { mutableStateOf(catalog.firstOrNull { it.downloadable && it.sha256==state.settings.modelHash } ?: catalog.first { it.downloadable }) };var choose by remember { mutableStateOf(false) };var info by remember { mutableStateOf(false) }
     val downloading=download?.state?.isFinished==false
+    var query by remember { mutableStateOf("") }
     var changeModel by rememberSaveable { mutableStateOf(false) }
     val installed=state.settings.modelPath.isNotBlank()
     LaunchedEffect(state.settings.modelHash,download?.state) { if(installed && download?.state?.isFinished!=false) changeModel=false }
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(vm::importModel) }
     LazyColumn(contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
         item { Text("Model",style=MaterialTheme.typography.headlineMedium) }
-        if(!installed || changeModel || downloading) item { Card { Column(Modifier.padding(18.dp)) { Text(selected.name,style=MaterialTheme.typography.titleLarge);Text("${selected.size/1_000_000} MB");Row { TextButton(onClick={choose=true}) {Text("Model seç")};TextButton(onClick={info=true}) {Text("Bilgi")} };Button(enabled=!downloading && !busy && selected.sha256!=state.settings.modelHash,onClick={vm.download(selected)}) {Text(if(selected.sha256==state.settings.modelHash) "Kullanılıyor" else "İndir ve kullan")};if(installed && !downloading) TextButton(onClick={changeModel=false}) { Text("Vazgeç") } } } }
+        if(!installed || changeModel || downloading) item { Card { Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+            Text(selected.name,style=MaterialTheme.typography.titleLarge)
+            Text(selected.scoreLabel,style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold)
+            Text(if(selected.downloadable) "${selected.size/1_000_000} MB · ${selected.formatLabel}" else "Mobil sürüm kullanılamıyor",style=MaterialTheme.typography.bodyMedium)
+            if(selected.availabilityReason.isNotBlank()) Text(selected.availabilityReason,style=MaterialTheme.typography.bodySmall)
+            Row { TextButton(enabled=!downloading && !busy,onClick={choose=true}) {Text("Model seç")};TextButton(onClick={info=true}) {Text("Bilgi")} }
+            Button(enabled=selected.downloadable && !downloading && !busy && selected.sha256!=state.settings.modelHash,onClick={vm.download(selected)}) {Text(if(selected.downloadable && selected.sha256==state.settings.modelHash) "Kullanılıyor" else "İndir ve kullan")}
+            if(installed && !downloading) TextButton(onClick={changeModel=false}) { Text("Vazgeç") }
+        } } }
         download?.let { d -> item {
             if(downloading) { val total=d.progress.getLong("total",selected.size);val bytes=d.progress.getLong("bytes",0);Text("${d.progress.getString("label")?:"Sırada"} · ${bytes/1_000_000} / ${total/1_000_000} MB");LinearProgressIndicator(progress={(bytes.toFloat()/total.coerceAtLeast(1)).coerceIn(0f,1f)},modifier=Modifier.fillMaxWidth());TextButton(onClick=vm::cancelDownload) {Text("İndirmeyi durdur")} }
             else if(d.state==androidx.work.WorkInfo.State.FAILED) Text(d.outputData.getString("error").orEmpty(),color=MaterialTheme.colorScheme.error)
         } }
-        item { Text("Kullanılan: ${state.settings.modelName}",fontWeight=FontWeight.Bold);Text(status);if(installed && !changeModel && !downloading) TextButton(enabled=!busy,onClick={changeModel=true;choose=true}) { Text("Model değiştir") };if(busy) LinearProgressIndicator(Modifier.fillMaxWidth());TextButton(enabled=!busy && !downloading,onClick={picker.launch(arrayOf("*/*"))}) {Text("GGUF dosyası seç")} }
+        item { Text("Kullanılan: ${state.settings.modelName}",fontWeight=FontWeight.Bold);catalog.firstOrNull { it.downloadable && it.sha256==state.settings.modelHash }?.let { Text(it.scoreLabel,color=MaterialTheme.colorScheme.primary) };Text(status);if(installed && !changeModel && !downloading) TextButton(enabled=!busy,onClick={changeModel=true;choose=true}) { Text("Model değiştir") };if(busy) LinearProgressIndicator(Modifier.fillMaxWidth());TextButton(enabled=!busy && !downloading,onClick={picker.launch(arrayOf("*/*"))}) {Text("Model dosyası seç")} }
         item { Button(enabled=state.settings.modelPath.isNotBlank() && !busy && !downloading,onClick={if(state.settings.paused) vm.resume() else vm.pause()}) {Text(if(state.settings.paused) "Devam et" else "Durdur")};TextButton(enabled=state.settings.paused,onClick=vm::retry) {Text("Eksik / hatalı olanları yeniden dene")} }
         item { QueueDots(state) }
     }
-    if(choose) AlertDialog(onDismissRequest={choose=false},title={Text("Model seç")},text={Column { catalog.forEach { spec -> Row(Modifier.fillMaxWidth().clickable { selected=spec;choose=false }.padding(12.dp),verticalAlignment=Alignment.CenterVertically) { RadioButton(selected.sha256==spec.sha256,{selected=spec;choose=false});Text(spec.name) } } }},confirmButton={TextButton(onClick={choose=false}) {Text("Kapat")}})
-    if(info) AlertDialog(onDismissRequest={info=false},title={Text(selected.name)},text={Text("2 CPU iş parçacığı\n${selected.ram}\n2.048 token bağlam\nBellek kullanımı cihaz ve girdiye göre değişir.")},confirmButton={TextButton(onClick={info=false}) {Text("Tamam")}})
+    if(choose) AlertDialog(onDismissRequest={choose=false},title={Text("Model seç · ${catalog.size} sürüm")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(value=query,onValueChange={query=it},label={Text("Model ara")},singleLine=true,modifier=Modifier.fillMaxWidth())
+        LazyColumn(Modifier.heightIn(max=440.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            items(catalog.filter { it.name.contains(query,ignoreCase=true) || it.family.contains(query,ignoreCase=true) },key={it.id}) { spec ->
+                OutlinedCard(Modifier.fillMaxWidth().clickable { selected=spec;choose=false }) {
+                    Row(Modifier.padding(10.dp),verticalAlignment=Alignment.CenterVertically) {
+                        RadioButton(selected.id==spec.id,{selected=spec;choose=false})
+                        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                            Text(spec.family,style=MaterialTheme.typography.titleSmall)
+                            Text(spec.variantLabel,style=MaterialTheme.typography.labelMedium)
+                            Text(spec.scoreLabel,color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.bodyMedium)
+                            Text(if(spec.downloadable) "${spec.size/1_000_000} MB · ${spec.formatLabel}" else "Mobil sürüm kullanılamıyor",style=MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        }
+    }},confirmButton={TextButton(onClick={choose=false}) {Text("Kapat")}})
+    if(info) AlertDialog(onDismissRequest={info=false},title={Text(selected.name)},text={Text("${selected.scoreLabel}\n\n101 başlıkta öğretmen etiketleriyle uyum ölçümü. Puan, HF/BF16 kıyasından alınır; mobil model yeniden puanlanmadı. Telefon hızı veya genel zekâ puanı değildir.\n\n2 CPU iş parçacığı\n${selected.ram}\n2.048 token bağlam\nBellek kullanımı cihaz ve girdiye göre değişir.")},confirmButton={TextButton(onClick={info=false}) {Text("Tamam")}})
 }
 
 @OptIn(ExperimentalFoundationApi::class)

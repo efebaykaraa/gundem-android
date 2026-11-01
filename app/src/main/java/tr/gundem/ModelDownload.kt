@@ -15,16 +15,33 @@ import java.security.MessageDigest
 
 const val MODEL_DOWNLOAD_WORK="model-download"
 private val modelDownloadLock=Mutex()
-data class ModelSpec(val url:String,val size:Long,val sha256:String,val name:String,val ram:String="≈ 1–2 GB RAM")
+data class ModelSpec(
+    val url:String,val size:Long,val sha256:String,val name:String,val ram:String="≈ 1–2 GB RAM",
+    val id:String=sha256,val family:String="",val variant:String="",val overallScore:Double?=null,
+    val scoreVersion:String="",val availabilityReason:String="",val format:String="gguf"
+) {
+    val downloadable:Boolean get()=format in setOf("gguf","onnx") && url.startsWith("https://") && size>0 && sha256.matches(Regex("[a-f0-9]{64}"))
+    val formatLabel:String get()=if(format=="onnx") "ONNX INT8" else "Q4_K_M"
+    val fileExtension:String get()=if(format=="onnx") "onnx.zip" else "gguf"
+    val variantLabel:String get()=when(variant) { "distilled"->"Fine-tuned";"original"->"Orijinal";else->"" }
+    val scoreLabel:String get()=overallScore?.let { "Gündem Score · %.1f / 100".format(java.util.Locale.forLanguageTag("tr"),it) } ?: "Gündem Score · Ölçülmedi"
+}
 // The bundled JSON is the editable catalog. First entry is the default.
 fun modelCatalog(context:Context):List<ModelSpec> = kotlinx.serialization.json.Json.parseToJsonElement(context.assets.open("models.json").bufferedReader().use { it.readText() }).jsonArray.map { row ->
     val o=row.jsonObject
-    ModelSpec(o.getValue("url").jsonPrimitive.content,o.getValue("size").jsonPrimitive.long,o.getValue("sha256").jsonPrimitive.content,o.getValue("name").jsonPrimitive.content,o.getValue("ram").jsonPrimitive.content)
+    val score=o["overallScore"]?.jsonPrimitive?.doubleOrNull
+    require(score==null || (score.isFinite() && score in 0.0..100.0)) { "Geçersiz model puanı" }
+    ModelSpec(o["url"]?.jsonPrimitive?.contentOrNull.orEmpty(),o["size"]?.jsonPrimitive?.longOrNull?:0L,
+        o["sha256"]?.jsonPrimitive?.contentOrNull.orEmpty(),o.getValue("name").jsonPrimitive.content,
+        o["ram"]?.jsonPrimitive?.contentOrNull.orEmpty(),o.getValue("id").jsonPrimitive.content,
+        o.getValue("family").jsonPrimitive.content,o.getValue("variant").jsonPrimitive.content,score,
+        o["scoreVersion"]?.jsonPrimitive?.contentOrNull.orEmpty(),o["availabilityReason"]?.jsonPrimitive?.contentOrNull.orEmpty(),o["format"]?.jsonPrimitive?.contentOrNull?:"gguf")
 }
-val RECOMMENDED_MODEL=ModelSpec("https://huggingface.co/efebaykara/LFM3-1.7B-Base-Gundem-LoRA/resolve/8a176de3d592f2f53ca47be50ab20ab201da0dad/gguf/LFM3-1.7B-Base-Gundem-Q4_K_M.gguf",1099626912L,"7f159f876a991ef5de009030de8848cba7c41914065321a4964510af891aa0e3","Gündem LFM3 Base · Q4_K_M","≈ 1,5–2,2 GB RAM")
+val RECOMMENDED_MODEL=ModelSpec("https://huggingface.co/efebaykara/LFM3-1.7B-Base-Gundem-LoRA/resolve/0d3b796d033f01e4ecf33a7cc0545889647c0443/gguf/lfm3-base-distilled-Q4_K_M.gguf",1099626912L,"7f159f876a991ef5de009030de8848cba7c41914065321a4964510af891aa0e3","Gündem LFM3 1.7B Base · Fine-tuned","Bellek ihtiyacı cihaz ve bağlama göre değişir.","lfm3-base:distilled","LFM3 1.7B Base","distilled",78.13429130523672,"gundem-score-v1")
 /** Streaming, bounded transfer. A stopped process keeps .part; identity is pinned by size + SHA. */
 object ModelTransfer {
     suspend fun download(spec:ModelSpec,file:File,progress:suspend (Long)->Unit,onResponse:(Int,Long)->Unit={_,_->},open:(URL)->HttpURLConnection={ it.openConnection() as HttpURLConnection }):File {
+        require(spec.downloadable) { spec.availabilityReason.ifBlank { "Bu model için indirilebilir mobil dosya yok" } }
         if(file.length()>spec.size) file.delete()
         if(file.length()<spec.size) {
             var target=spec.url;var finished=false
@@ -73,23 +90,23 @@ object ModelTransfer {
 class ModelDownloadWorker(context:Context,params:WorkerParameters):CoroutineWorker(context,params) {
     @Volatile private var installing=false
     override suspend fun doWork():Result=withContext(Dispatchers.IO) { modelDownloadLock.withLock {
-        val app=applicationContext as GundemApp;val spec=modelCatalog(app).firstOrNull { it.sha256==inputData.getString("model") } ?: modelCatalog(app).first()
+        val app=applicationContext as GundemApp;val catalog=modelCatalog(app);val spec=catalog.firstOrNull { it.downloadable && it.sha256==inputData.getString("model") } ?: catalog.first { it.downloadable }
         val directory=File(app.filesDir,"models").apply { mkdirs() }
-        val finalFile=File(directory,"${spec.sha256}.gguf")
+        val finalFile=File(directory,"${spec.sha256}.${spec.fileExtension}")
         val part=if(finalFile.isFile) finalFile else File(directory,"${spec.sha256}.part")
         var resumedFrom=0L;var httpStatus=0
         val start=System.nanoTime();app.logs.add("MODEL","İndirme başladı",spec.name)
         val watcher=launch(start=CoroutineStart.UNDISPATCHED) { try { awaitCancellation() } finally { if(installing) app.model.cancel() } }
         try {
             setForeground(downloadForeground(app,id,part.length(),spec.size))
-            require(directory.usableSpace+part.length()>spec.size+100L*1024*1024) { "Model için yeterli boş alan yok" }
+            require(directory.usableSpace+part.length()>spec.size*(if(spec.format=="onnx") 3 else 1)+100L*1024*1024) { "Model için yeterli boş alan yok" }
             setProgress(workDataOf("label" to "İndiriliyor", "bytes" to part.length(),"total" to spec.size))
             ModelTransfer.download(spec,part,progress={ count -> setForeground(downloadForeground(app,id,count,spec.size));setProgress(workDataOf("label" to "İndiriliyor", "bytes" to count,"total" to spec.size)) },onResponse={code,offset->httpStatus=code;resumedFrom=offset;app.logs.add("MODEL","HTTP yanıtı","kod=$code, devam=$offset")})
             currentCoroutineContext().ensureActive()
             app.settings.update { it.copy(paused=true) };app.model.cancel();WorkManager.getInstance(app).cancelUniqueWork("analysis").result.get()
-            setProgress(workDataOf("label" to "GGUF yüklenerek doğrulanıyor", "bytes" to spec.size,"total" to spec.size))
+            setProgress(workDataOf("label" to "Model yüklenerek doğrulanıyor", "bytes" to spec.size,"total" to spec.size))
             installing=true
-            val(path,fingerprint,name)=app.model.install(part,spec.sha256,spec.name)
+            val(path,fingerprint,name)=app.model.install(part,spec.sha256,spec.name,spec.format)
             currentCoroutineContext().ensureActive()
             app.settings.update { it.copy(modelPath=path,modelHash=fingerprint,modelName=name,paused=true) }
             app.logs.add("MODEL","Model hazır",spec.name,(System.nanoTime()-start)/1_000_000)
@@ -100,5 +117,6 @@ class ModelDownloadWorker(context:Context,params:WorkerParameters):CoroutineWork
     } }
 }
 fun downloadModel(context:Context,spec:ModelSpec=RECOMMENDED_MODEL) {
+    require(spec.downloadable) { spec.availabilityReason.ifBlank { "Bu model için indirilebilir mobil dosya yok" } }
     WorkManager.getInstance(context).enqueueUniqueWork(MODEL_DOWNLOAD_WORK,ExistingWorkPolicy.KEEP,OneTimeWorkRequestBuilder<ModelDownloadWorker>().setInputData(workDataOf("model" to spec.sha256)).setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build())
 }

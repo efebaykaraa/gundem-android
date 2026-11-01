@@ -21,10 +21,10 @@ Read RSS/Atom feeds, save and share stories, adjust their ranking, and group rel
 
 ## Get started
 
-Requires **Android 9+**. [Download the v0.9.0 APK](https://github.com/efebaykaraa/gundem-android/releases/tag/v0.9.0) or build it using the instructions below. The downloadable APK is a debug-signed preview.
+Requires **Android 9+**. [Download the v0.9.1 APK](https://github.com/efebaykaraa/gundem-android/releases/tag/v0.9.1) or build it using the instructions below. The downloadable APK is a debug-signed preview.
 
 1. Enable sources in **Kaynaklar**, then select **Akış → Yenile**.
-2. Open **Model → Model seç → İndir ve kullan**, or import a compatible file with **GGUF dosyası seç**.
+2. Open **Model → Model seç → İndir ve kullan**, or import a compatible file with **Model dosyası seç**.
 3. Press **Başlat / devam** to analyze headlines. **Durdur** pauses analysis; **Hatalı / eksik analizleri yeniden dene** retries unsuccessful items.
 4. Open a story to see its sources and score, correct its analysis, or merge/split related headlines.
 5. Adjust ranking in **Ayarlar → Katsayılar** and press **Uygula**. Theme, text size, settings export and logs are also available in settings.
@@ -33,18 +33,13 @@ The interface is Turkish. Reading works without a model. Fetching feeds, downloa
 
 ## Models
 
-Models are downloaded separately from the APK.
+The picker includes **20 downloads: original and fine-tuned versions of all 10 model families**. Each model card and the download card shows its **Gündem Score out of 100**, variant, size and format. LFM3 Base fine-tuned is selected by default.
 
-| Model | Download | Use |
-| --- | ---: | --- |
-| Gündem LFM3 Base · Q4_K_M | About 1.10 GB | Default; fine-tuned from LFM3 Base |
-| Gündem LFM3 · Q4_K_M | About 1.10 GB | Fine-tuned from post-trained LFM3 |
+Choose from LFM3 Base, LFM3, Octen, Spark, Llama 3.2 (1B and 3B), Limite, Qwen 3.5 (0.8B and 2B), and GPT-X3. Downloads use Q4_K_M GGUF for 18 variants and self-contained ONNX INT8 bundles for both GPT-X3 variants. The app selects the runtime automatically; models are downloaded separately from the APK.
 
-You can import compatible GGUF files up to 3 GiB. Imports need extra storage for the app's copy; available RAM limits which models can run. Model compatibility depends on the bundled llama.cpp runtime.
+[Compare scores and download files](https://github.com/efebaykaraa/gundem-llms/blob/master/docs/MOBILE.md). Scores measure headline classification on 101 held-out examples using HF/BF16. They are not phone-speed measurements or new evaluations of the quantized files. A score of 0.0 is a measured result.
 
-The catalog contains our fine-tuned models. Downloads are pinned by revision, size and SHA-256. You can also import other compatible GGUF files. [Model catalog](app/src/main/assets/models.json).
-
-[Download fine-tuned LFM GGUFs](https://github.com/efebaykaraa/gundem-llms/blob/master/docs/RELEASES.md) and import them from the model screen.
+Downloads are pinned to a revision and verified by size and SHA-256. You can also import compatible GGUF files or GPT-X3 ONNX ZIP bundles up to 3 GiB. Imports and ONNX extraction need additional storage; available RAM limits which models can run. [App catalog](app/src/main/assets/models.json).
 
 ## Build and install
 
